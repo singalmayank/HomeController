@@ -4,31 +4,30 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
+import android.widget.ExpandableListView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.ToggleButton;
 
-import com.iothome.app.homecontroller.model.Customer;
+import com.amazonaws.mobileconnectors.apigateway.ApiClientFactory;
+import com.iothome.app.homecontroller.model.Asset;
 import com.iothome.app.homecontroller.model.Room;
+import com.iothome.app.homecontroller.model.User;
 import com.iothome.app.homecontroller.model.Thing;
 import com.iothome.app.homecontroller.util.Constants;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.iothome.app.homecontroller.util.ThingsExpandableListAdapter;
+import com.iothome.app.homecontroller.util.Utilities;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
-
-import javax.net.ssl.HttpsURLConnection;
+import java.util.List;
 
 public class ThingsActivity extends AppCompatActivity implements View.OnClickListener {
 
@@ -43,19 +42,20 @@ public class ThingsActivity extends AppCompatActivity implements View.OnClickLis
         String loginName = getIntent().getStringExtra(Constants.EXTRA_NAME);
         String loginEmail = getIntent().getStringExtra(Constants.EXTRA_LOGIN);
 
-        Toolbar myToolbar = (Toolbar) findViewById(R.id.my_toolbar);
+        Toolbar myToolbar = findViewById(R.id.my_toolbar);
         setSupportActionBar(myToolbar);
 
         new SendRequest().execute(loginEmail);
     }
 
-    public class SendRequest extends AsyncTask<String, Void, String> {
+    public class SendRequest extends AsyncTask<String, Void, User> {
 
         protected void onPreExecute() {
         }
 
-        protected String doInBackground(String... arg0) {
+        protected User doInBackground(String... arg0) {
 
+            User user = null;
             try {
 
                 //TODO : Use this once we have complete end point setup
@@ -63,128 +63,83 @@ public class ThingsActivity extends AppCompatActivity implements View.OnClickLis
 
                 java.net.URL url = new URL(Constants.URL);
 
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setReadTimeout(15000 /* milliseconds */);
-                conn.setConnectTimeout(15000 /* milliseconds */);
-                conn.setRequestMethod("GET");
-                conn.setDoOutput(true);
+                ApiClientFactory factory = new ApiClientFactory();
+                // Create an instance of your SDK.
+                final UserManagementClient client = factory.build(UserManagementClient.class);
+                user = client.usersEmailIdGet(loginName);
 
-                int responseCode = conn.getResponseCode();
-                Log.d(TAG, "HTTP Response : " + responseCode);
 
-                if (responseCode == HttpsURLConnection.HTTP_OK) {
-
-                    BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    StringBuffer sb = new StringBuffer("");
-                    String line = "";
-
-                    while ((line = in.readLine()) != null) {
-                        sb.append(line);
-                    }
-
-                    in.close();
-                    return sb.toString();
-
-                } else {
-                    return new String("false : " + responseCode);
-                }
             } catch (Exception e) {
                 e.printStackTrace();
-                return new String("Exception: " + e.getMessage());
+                //return new String("Exception: " + e.getMessage());
             }
+            return user;
         }
 
         @Override
-        protected void onPostExecute(String result) {
-            Customer customer = new Customer();
-            try {
-
-                JSONObject json = new JSONObject(result);
-                JSONObject customerObject = json.getJSONObject("customer");
-
-                customer.setCid(customerObject.getLong("cid"));
-                customer.setCemail(customerObject.getString("cemail"));
-
-
-                JSONArray rooms = customerObject.getJSONArray("rooms");
-
-                for (int i = 0; i < rooms.length(); i++) {
-                    JSONObject roomObject = rooms.getJSONObject(i);
-                    Room room = new Room();
-                    room.setRid(roomObject.getLong("rid"));
-                    room.setName(roomObject.getString("name"));
-
-                    JSONArray things = roomObject.getJSONArray("things");
-
-                    for (int j = 0; j < things.length(); j++) {
-                        JSONObject thingObject = things.getJSONObject(j);
-                        Thing thing = new Thing(thingObject.getLong("tid"),
-                                thingObject.getString("name"),
-                                thingObject.getString("state"));
-                        room.getThings().add(thing);
-
-                    }
-                    customer.getRooms().add(room);
-                }
-            } catch (Exception e) {
-                // manage exceptions
-                e.printStackTrace();
-            }
-
-            populateView(customer);
+        protected void onPostExecute(User user) {
+            populateView(user);
         }
     }
 
-    private void populateView(Customer customer) {
+    private void populateView(User user) {
+
         //Main outer layout
         LinearLayout verticalLinLayout = (LinearLayout) findViewById(R.id.list_layout);
 
-        Iterator i = customer.getRooms().iterator();
-
-        while (i.hasNext()) {
-            Room r = (Room) i.next();
-
-            //One horizontal for each room
-            LinearLayout linLayout = new LinearLayout(this);
-
-            TextView tv = new TextView(this);
-            tv.setText(r.getName());
-            linLayout.addView(tv, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
-
-            verticalLinLayout.addView(linLayout);
-
-            Iterator j = r.getThings().iterator();
-
-            //One horizontal for each thing
-            LinearLayout verticalThingslinLayout = new LinearLayout(this);
-            verticalThingslinLayout.setOrientation(LinearLayout.VERTICAL);
-            verticalLinLayout.addView(verticalThingslinLayout, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
-
-            while (j.hasNext()) {
-                Thing t = (Thing) j.next();
-
-                LinearLayout horizontalThingsLayout = new LinearLayout(this);
-                horizontalThingsLayout.setWeightSum(4);
-                verticalLinLayout.addView(horizontalThingsLayout);
-
-                TextView tvt = new TextView(this);
-                tvt.setText(t.getName());
-                tvt.setId(Integer.parseInt(String.valueOf(t.getTid())));
-                horizontalThingsLayout.addView(tvt, new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, 3.5f));
-
-                ToggleButton tb = new ToggleButton(this);
-                tb.setId(Integer.valueOf(String.valueOf(t.getTid())));
-                if (Constants.ON.equals(t.getState())) {
-                    tb.setChecked(true);
-                } else {
-                    tb.setChecked(false);
-                }
-                tb.setOnClickListener(this);
-                horizontalThingsLayout.addView(tb, new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, 0.5f));
+        //Read the Asset level Things first.
+        if (user.getThings() != null){
+            Iterator assetThingsIterator = user.getThings().iterator();
+            while (assetThingsIterator.hasNext()) {
+                verticalLinLayout.addView(
+                        Utilities.createThingView(null, (Thing)assetThingsIterator.next(), this));
             }
 
         }
 
+        Iterator assetIterator = user.getAssets().iterator();
+
+        while (assetIterator.hasNext()) {
+
+            Asset asset = (Asset) assetIterator.next();
+
+            LinearLayout assetLayout = new LinearLayout(this);
+            assetLayout.setOrientation(LinearLayout.VERTICAL);
+
+
+            TextView tv = new TextView(this);
+            tv.setText(asset.getDisplayName());
+            tv.setTextSize(32f);
+            assetLayout.addView(tv, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
+
+            Iterator roomIterator = asset.getRooms().iterator();
+
+            while (roomIterator.hasNext()) {
+                List<String> roomListHeaders = new ArrayList<String>();
+                HashMap<String, List<Thing>> roomListChild = new HashMap<String, List<Thing>>();
+
+                List<Thing> thingsListHeaders = new ArrayList<Thing>();
+                Room room = (Room) roomIterator.next();
+                roomListHeaders.add(room.getDisplayName());
+
+                LinearLayout roomLayout = new LinearLayout(this);
+                roomLayout.setOrientation(LinearLayout.VERTICAL);
+
+                ExpandableListView roomListView = new ExpandableListView(this);
+
+                Iterator thingIterator = room.getThings().iterator();
+                while (thingIterator.hasNext()) {
+                    Thing thing = (Thing) thingIterator.next();
+                    thingsListHeaders.add(thing);
+                }
+
+                roomListView.setAdapter(new ThingsExpandableListAdapter(this,roomListHeaders,roomListChild));
+                roomListChild.put(room.getDisplayName(), thingsListHeaders);
+                roomLayout.addView(roomListView);
+                assetLayout.addView(roomLayout);
+            }
+            verticalLinLayout.addView(assetLayout,new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        }
     }
 
     @Override
