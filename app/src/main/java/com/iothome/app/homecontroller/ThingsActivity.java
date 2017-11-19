@@ -61,8 +61,6 @@ public class ThingsActivity extends AppCompatActivity implements View.OnClickLis
                 //TODO : Use this once we have complete end point setup
                 String loginName = arg0[0];
 
-                java.net.URL url = new URL(Constants.URL);
-
                 ApiClientFactory factory = new ApiClientFactory();
                 // Create an instance of your SDK.
                 final UserManagementClient client = factory.build(UserManagementClient.class);

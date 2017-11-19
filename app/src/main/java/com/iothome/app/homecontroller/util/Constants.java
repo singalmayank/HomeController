@@ -11,8 +11,5 @@ public class Constants {
     public static final String EXTRA_NAME = "CUSTOMER_NAME";
 
     public static final String ON = "on";
-
-    //TODO : Move this to actual REST call. Currently a set of dummy results.
-    public static final String URL = "http://www.mocky.io/v2/59ecfa403100004e00d24e89";
 }
 
