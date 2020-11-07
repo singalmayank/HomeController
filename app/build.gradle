@@ -36,4 +36,5 @@ dependencies {
     implementation 'com.amazonaws:aws-android-sdk-core:2.6.6'
     implementation 'com.amazonaws:aws-android-sdk-apigateway-core:2.6.6'
 }
+
 apply plugin: 'com.google.gms.google-services'

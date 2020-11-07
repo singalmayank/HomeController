@@ -23,7 +23,6 @@ import com.iothome.app.homecontroller.util.Constants;
 import com.iothome.app.homecontroller.util.ThingsExpandableListAdapter;
 import com.iothome.app.homecontroller.util.Utilities;
 
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -45,10 +44,10 @@ public class ThingsActivity extends AppCompatActivity implements View.OnClickLis
         Toolbar myToolbar = findViewById(R.id.my_toolbar);
         setSupportActionBar(myToolbar);
 
-        new SendRequest().execute(loginEmail);
+        new GetUserAssets().execute(loginEmail);
     }
 
-    public class SendRequest extends AsyncTask<String, Void, User> {
+    public class GetUserAssets extends AsyncTask<String, Void, User> {
 
         protected void onPreExecute() {
         }
